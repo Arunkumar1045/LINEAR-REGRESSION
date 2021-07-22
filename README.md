@@ -1,2 +1,2 @@
 # LINEAR-REGRESSION
-PREDICTING THE PRICE OF THE HOUSE AND DECIDING WHICH HOUSE IS BEST TO BUY.
+Predicting the house price using linear regression and deciding which house is best to buy according to my prediction.
