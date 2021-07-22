@@ -1,0 +1,158 @@
+########################################### Linear Regression
+
+import pandas as pd
+import numpy as np
+import statsmodels.formula.api as sm
+
+
+# import dataset
+import os
+
+os.chdir("C:\\Users\\USER\\Desktop\\Python\\Class 6 Linear Regression\\class1 for linear regression")
+
+data = pd.read_csv('House_Price.csv')
+data.head()
+
+
+
+data.head()
+
+#pd.set_option('display.max_columns', None)#show all columns
+
+# boxplot to showoutliers
+data.boxplot(column=["Price_house"])
+
+
+# easy way to remove outliers
+def pintu (data,age):
+ Q1 = data[age].quantile(0.25)
+ Q3 = data[age].quantile(0.75)
+ IQR = Q3 - Q1
+ data= data.loc[~((data[age] < (Q1 - 1.5 * IQR)) | (data[age] > (Q3 + 1.5 * IQR))),]
+ return data
+
+data.boxplot(column=["Price_house"])
+data = pintu(data,"Price_house")
+data
+
+
+data.boxplot(column=["Taxi_dist"])
+
+data = pintu(data,"Taxi_dist")
+data
+
+data.boxplot(column=["Carpet_area"])
+data = pintu(data,"Carpet_area")
+
+data.boxplot(column=["Builtup_area"])
+data = pintu(data,"Builtup_area")
+
+data.boxplot(column=["Rainfall"])
+data = pintu(data,"Rainfall")
+
+
+#
+data.info()#shows data rows
+data.isnull().sum()#missing values per variable
+data = data.dropna()# deletes all rows with missing values
+
+
+data.head()
+
+#segregating categorical variables
+cat = data.loc[:,["City_type","Parking_type"]]
+cat.head()
+
+#dropping the original variables
+data = data.drop(["City_type","Parking_type"],axis=1)
+
+
+
+# creating dummy varaibles
+dum = pd.get_dummies(cat.astype(str),drop_first=True)
+dum.head()
+
+# concatnating the columns (cbind of R)
+data = pd.concat([data,dum],axis=1)
+
+
+
+rock=sm.ols(formula=
+"Price_house~Taxi_dist+Market_dist+Hospital_dist+Carpet_area+Builtup_area + Rainfall+Q('City_type_CAT B')+Q('City_type_CAT C')+Q('Parking_type_No Parking')+Q('Parking_type_Not Provided')+Q('Parking_type_Open') ",
+data=data).fit()
+rock.summary()# shows total summary
+#Prob (F-statistic) is the ANOVA; should be more than 0.05
+
+
+
+rock=sm.ols(formula=
+"Price_house~Market_dist+Hospital_dist+Carpet_area+Builtup_area + Rainfall+Q('City_type_CAT B')+Q('City_type_CAT C')+Q('Parking_type_No Parking')+Q('Parking_type_Not Provided')+Q('Parking_type_Open') ",
+data=data).fit()
+rock.summary()# shows total summary
+
+rock=sm.ols(formula=
+"Price_house~Hospital_dist+Carpet_area + Q('City_type_CAT B')+Q('City_type_CAT C')+Q('Parking_type_No Parking')+Q('Parking_type_Not Provided')+Q('Parking_type_Open') ",
+data=data).fit()
+rock.summary()# shows total summary
+
+
+
+
+#predicting the outcomes
+data["pred"] = rock.predict()
+data.head()
+
+
+var = pd.DataFrame(round(rock.pvalues,3))# shows p value
+rock.rsquared
+var["coeff"] = rock.params#coefficients
+
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+variables = rock.model.exog #.if I had saved data as rock
+# this it would have looked like rock.model.exog
+vif = [variance_inflation_factor(variables, i) for i in range(variables.shape[1])]
+vif 
+var["vif"] = vif
+var
+
+###### mape
+data["mp"] = abs((data["Price_house"] - data["pred"])/data["Price_house"])
+(data.mp.mean())*100#mape
+
+
+# assumption normality test
+#Shapiro Wilk test
+#Null Hypothesis: The residuals are normally distributed.
+#Alternative Hypothesis: The residuals are not normally distributed.
+from scipy import stats
+stats.shapiro(rock.resid)#2nd value is p value;
+
+from scipy.stats import normaltest
+normaltest(rock.resid)
+
+#Checking for autocorrelation
+#Null Hypothesis: Autocorrelation is absent.
+#Alternative Hypothesis: Autocorrelation is present.
+
+from statsmodels.stats import diagnostic as diag
+diag.acorr_ljungbox(rock.resid , lags = 1)#2nd value is p value; 
+
+#Checking heteroscedasticity
+#Null Hypothesis: Error terms are homoscedastic
+#Alternative Hypothesis: Error terms are heteroscedastic.
+
+import statsmodels.stats.api as sms
+from statsmodels.compat import lzip
+
+#Goldfeld-Quandt test
+name = ['F statistic', 'p-value']
+test = sms.het_goldfeldquandt(rock.resid, rock.model.exog)
+lzip(name, test)#2nd value is p value; 
+
+#Breush-Pagan test:
+name = ['Lagrange multiplier statistic', 'p-value',
+        'f-value', 'f p-value']
+test = sms.het_breuschpagan(rock.resid, rock.model.exog)
+lzip(name, test)
+
+######### end of linear regression
